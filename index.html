@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پیشبینی نتیجه فوتبال - هوش مصنوعی پیشرفته</title>
+    <link href="tailwind.min.css" rel="stylesheet">
+    <!-- Random Forest ML.js -->
+    <script src="ml.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap');
+        * { font-family: 'Vazirmatn', sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card-shadow { box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .prediction-result { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .ml-badge { background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- Header -->
+    <div class="gradient-bg text-white py-8">
+        <div class="container mx-auto px-4 text-center">
+            <h1 class="text-4xl font-bold mb-2">🤖 پیشبینی فوتبال با هوش مصنوعی پیشرفته</h1>
+            <p class="text-lg opacity-90">سیستم پیشرفته Random Forest + Feature Engineering</p>
+            <div class="ml-badge text-white px-4 py-2 rounded-full inline-block mt-2 text-sm font-bold">
+                🧠 AI-Powered Prediction Engine (Random Forest)
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-4 py-8">
+        <!-- Navigation Tabs -->
+        <div class="flex flex-wrap justify-center mb-8 bg-white rounded-lg p-2 card-shadow">
+            <button onclick="showTab('teams')" id="teams-tab" class="tab-btn px-6 py-3 rounded-lg font-medium transition-all bg-blue-500 text-white">
+                📊 مدیریت تیم‌ها
+            </button>
+            <button onclick="showTab('matches')" id="matches-tab" class="tab-btn px-6 py-3 rounded-lg font-medium transition-all text-gray-600 hover:bg-gray-100">
+                📋 تاریخچه بازی‌ها
+            </button>
+            <button onclick="showTab('predict')" id="predict-tab" class="tab-btn px-6 py-3 rounded-lg font-medium transition-all text-gray-600 hover:bg-gray-100">
+                🤖 پیشبینی هوشمند
+            </button>
+        </div>
+
+        <!-- Data Management Bar -->
+        <div class="bg-white rounded-lg p-4 mb-6 card-shadow">
+            <div class="flex flex-wrap justify-center gap-3">
+                <button onclick="saveData()" class="bg-green-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-600 transition-colors">
+                    💾 ذخیره داده‌ها
+                </button>
+                <button onclick="exportData()" class="bg-blue-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-600 transition-colors">
+                    📤 دانلود پشتیبان
+                </button>
+                <label class="bg-purple-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-purple-600 transition-colors cursor-pointer">
+                    📥 بارگذاری پشتیبان
+                    <input type="file" accept=".json" onchange="importData(event)" class="hidden">
+                </label>
+                <button onclick="clearAllData()" class="bg-red-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-600 transition-colors">
+                    🗑️ پاک کردن همه
+                </button>
+                <button onclick="trainRFModel()" class="bg-gradient-to-r from-orange-500 to-red-500 text-black px-4 py-2 rounded-lg font-medium hover:from-orange-600 hover:to-red-600 transition-colors">
+                    🧠 آموزش مدل Random Forest
+                </button>
+            </div>
+        </div>
+
+        <!-- Teams Management Tab -->
+        <div id="teams-content" class="tab-content">
+            <div class="grid lg:grid-cols-2 gap-8">
+                <!-- Add Team -->
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <h3 class="text-xl font-bold mb-4 text-gray-800">➕ افزودن تیم جدید</h3>
+                    <div class="space-y-4">
+                        <input type="text" id="team-name" placeholder="نام تیم" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <button onclick="addTeam()" class="w-full bg-blue-500 text-white py-3 rounded-lg font-medium hover:bg-blue-600 transition-colors">
+                            افزودن تیم
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Teams List -->
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <h3 class="text-xl font-bold mb-4 text-gray-800">📋 جدول لیگ (محاسبه خودکار)</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="p-3 text-right">تیم</th>
+                                    <th class="p-3 text-center">امتیاز</th>
+                                    <th class="p-3 text-center">برد</th>
+                                    <th class="p-3 text-center">مساوی</th>
+                                    <th class="p-3 text-center">باخت</th>
+                                    <th class="p-3 text-center">گل زده</th>
+                                    <th class="p-3 text-center">گل خورده</th>
+                                    <th class="p-3 text-center">تفاضل گل</th>
+                                    <th class="p-3 text-center">عملیات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="teams-table">
+                                <!-- Teams will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Matches History Tab -->
+        <div id="matches-content" class="tab-content hidden">
+            <div class="grid lg:grid-cols-2 gap-8">
+                <!-- Add Match -->
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <h3 class="text-xl font-bold mb-4 text-gray-800">➕ افزودن بازی</h3>
+                    <div class="space-y-4">
+                        <select id="home-team" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">تیم میزبان</option>
+                        </select>
+                        <select id="away-team" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">تیم میهمان</option>
+                        </select>
+                        <div class="grid grid-cols-2 gap-3">
+                            <input type="number" id="home-goals" placeholder="گل میزبان" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <input type="number" id="away-goals" placeholder="گل میهمان" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <input type="date" id="match-date" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <button onclick="addMatch()" class="w-full bg-green-500 text-white py-3 rounded-lg font-medium hover:bg-green-600 transition-colors">
+                            افزودن بازی
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Matches List -->
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <h3 class="text-xl font-bold mb-4 text-gray-800">📅 تاریخچه بازی‌ها</h3>
+                    <div class="space-y-3 max-h-96 overflow-y-auto" id="matches-list">
+                        <!-- Matches will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prediction Tab -->
+        <div id="predict-content" class="tab-content hidden">
+            <div class="max-w-4xl mx-auto">
+                <div class="bg-white rounded-xl p-8 card-shadow">
+                    <h3 class="text-2xl font-bold mb-6 text-center text-gray-800">🤖 پیشبینی هوشمند (Random Forest AI)</h3>
+                    
+                    <div class="grid md:grid-cols-2 gap-6 mb-8">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">تیم میزبان</label>
+                            <select id="predict-home" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-lg">
+                                <option value="">انتخاب تیم میزبان</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">تیم میهمان</label>
+                            <select id="predict-away" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-lg">
+                                <option value="">انتخاب تیم میهمان</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button onclick="predictMatch()" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 rounded-lg font-bold text-lg hover:from-purple-600 hover:to-pink-600 transition-all transform hover:scale-105">
+                        🧠 پیشبینی با هوش مصنوعی
+                    </button>
+
+                    <div id="prediction-result" class="hidden mt-8 p-6 rounded-xl text-white text-center prediction-result">
+                        <!-- Prediction result will be shown here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // --- داده‌ها و مدل ---
+    let teams = [];
+    let matches = [];
+    let rfModel = null;
+    let modelTrained = false;
+
+    // --- مهندسی ویژگی پیشرفته برای هر بازی ---
+    function extractAdvancedFeatures(homeTeamId, awayTeamId, matchDate) {
+        const homeTeam = teams.find(t => t.id === homeTeamId);
+        const awayTeam = teams.find(t => t.id === awayTeamId);
+
+        // رتبه هر تیم قبل از بازی
+        const allStats = teams.map(t => ({
+            ...t,
+            ...calculateTeamStats(t.id)
+        }));
+        const sortedTeams = [...allStats].sort((a, b) => {
+            if (b.points !== a.points) return b.points - a.points;
+            return (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst);
+        });
+        const homeRank = sortedTeams.findIndex(t => t.id === homeTeamId) + 1;
+        const awayRank = sortedTeams.findIndex(t => t.id === awayTeamId) + 1;
+
+        // آمار کلی تیم‌ها
+        function averageGoals(teamId) {
+            const played = matches.filter(m => m.homeTeam === teamId || m.awayTeam === teamId);
+            const goalsFor = played.reduce((sum, m) => sum + (m.homeTeam === teamId ? m.homeGoals : m.awayGoals), 0);
+            const goalsAgainst = played.reduce((sum, m) => sum + (m.homeTeam === teamId ? m.awayGoals : m.homeGoals), 0);
+            return {
+                avgFor: played.length ? goalsFor / played.length : 0,
+                avgAgainst: played.length ? goalsAgainst / played.length : 0
+            };
+        }
+
+        const homeAvg = averageGoals(homeTeamId);
+        const awayAvg = averageGoals(awayTeamId);
+
+        // Head-to-Head
+        const h2h = matches.filter(m =>
+            (m.homeTeam === homeTeamId && m.awayTeam === awayTeamId) ||
+            (m.homeTeam === awayTeamId && m.awayTeam === homeTeamId)
+        );
+        const h2hHomeWins = h2h.filter(m =>
+            (m.homeTeam === homeTeamId && m.homeGoals > m.awayGoals) ||
+            (m.awayTeam === homeTeamId && m.awayGoals > m.homeGoals)
+        ).length;
+        const h2hAwayWins = h2h.filter(m =>
+            (m.homeTeam === awayTeamId && m.homeGoals > m.awayGoals) ||
+            (m.awayTeam === awayTeamId && m.awayGoals > m.homeGoals)
+        ).length;
+        const h2hDraws = h2h.length - h2hHomeWins - h2hAwayWins;
+
+        // فرم اخیر: ۵ بازی آخر
+        function recentPoints(teamId) {
+            const recent = matches
+                .filter(m => m.date < matchDate && (m.homeTeam === teamId || m.awayTeam === teamId))
+                .slice(-5);
+            let pts = 0;
+            recent.forEach(m => {
+                if (m.homeTeam === teamId) {
+                    if (m.homeGoals > m.awayGoals) pts += 3;
+                    else if (m.homeGoals === m.awayGoals) pts += 1;
+                } else {
+                    if (m.awayGoals > m.homeGoals) pts += 3;
+                    else if (m.awayGoals === m.homeGoals) pts += 1;
+                }
+            });
+            return recent.length ? pts / (3 * recent.length) : 0.5;
+        }
+        const homeForm = recentPoints(homeTeamId);
+        const awayForm = recentPoints(awayTeamId);
+
+        // نتایج مقابل تیم‌های مشترک
+        function commonOppTeamStats(teamA, teamB) {
+            const opponentsA = matches
+                .filter(m => m.homeTeam === teamA || m.awayTeam === teamA)
+                .map(m => m.homeTeam === teamA ? m.awayTeam : m.homeTeam);
+            const opponentsB = matches
+                .filter(m => m.homeTeam === teamB || m.awayTeam === teamB)
+                .map(m => m.homeTeam === teamB ? m.awayTeam : m.homeTeam);
+            const common = opponentsA.filter(o => opponentsB.includes(o));
+            // میانگین گل زده تیم A مقابل حریفان مشترک
+            let aFor = 0, aAgainst = 0, aGames = 0;
+            common.forEach(o => {
+                matches.forEach(m => {
+                    if ((m.homeTeam === teamA && m.awayTeam === o) || (m.homeTeam === o && m.awayTeam === teamA)) {
+                        if (m.homeTeam === teamA) {
+                            aFor += m.homeGoals;
+                            aAgainst += m.awayGoals;
+                        } else {
+                            aFor += m.awayGoals;
+                            aAgainst += m.homeGoals;
+                        }
+                        aGames++;
+                    }
+                });
+            });
+            return {
+                avgFor: aGames ? aFor / aGames : 0,
+                avgAgainst: aGames ? aAgainst / aGames : 0
+            };
+        }
+        const homeVsCommon = commonOppTeamStats(homeTeamId, awayTeamId);
+        const awayVsCommon = commonOppTeamStats(awayTeamId, homeTeamId);
+
+        // اختلاف امتیاز و رتبه
+        const homeStats = calculateTeamStats(homeTeamId);
+        const awayStats = calculateTeamStats(awayTeamId);
+        const pointsDiff = (homeStats.points || 0) - (awayStats.points || 0);
+        const rankDiff = homeRank - awayRank;
+
+        // میزبان بودن
+        const homeAdvantage = 1;
+
+        return [
+            homeRank, awayRank,
+            homeAvg.avgFor, homeAvg.avgAgainst,
+            awayAvg.avgFor, awayAvg.avgAgainst,
+            h2hHomeWins, h2hAwayWins, h2hDraws,
+            homeForm, awayForm,
+            pointsDiff, rankDiff,
+            homeVsCommon.avgFor, homeVsCommon.avgAgainst,
+            awayVsCommon.avgFor, awayVsCommon.avgAgainst,
+            homeAdvantage
+        ];
+    }
+
+    // --- محاسبه آمار تیم از بازی‌ها (تابع مهم جدید) ---
+    function calculateTeamStats(teamId) {
+        let wins = 0, draws = 0, losses = 0, goalsFor = 0, goalsAgainst = 0;
+        matches.forEach(match => {
+            if (match.homeTeam === teamId) {
+                goalsFor += match.homeGoals;
+                goalsAgainst += match.awayGoals;
+                if (match.homeGoals > match.awayGoals) wins++;
+                else if (match.homeGoals === match.awayGoals) draws++;
+                else losses++;
+            } else if (match.awayTeam === teamId) {
+                goalsFor += match.awayGoals;
+                goalsAgainst += match.homeGoals;
+                if (match.awayGoals > match.homeGoals) wins++;
+                else if (match.awayGoals === match.homeGoals) draws++;
+                else losses++;
+            }
+        });
+        return {
+            wins,
+            draws,
+            losses,
+            goalsFor,
+            goalsAgainst,
+            goalDifference: goalsFor - goalsAgainst,
+            points: wins * 3 + draws
+        };
+    }
+
+    // --- آموزش مدل Random Forest ---
+    function trainRFModel() {
+        if (matches.length < 15 || teams.length < 4) {
+            showNotification('حداقل ۱۵ بازی و ۴ تیم برای آموزش مدل نیاز است', 'error');
+            return false;
+        }
+        
+        const X = [];
+        const y = [];
+        matches.forEach(match => {
+            const features = extractAdvancedFeatures(match.homeTeam, match.awayTeam, match.date);
+            X.push(features);
+            // کلاس: 0 = برد میزبان، 1 = مساوی، 2 = برد میهمان
+            let label = 1;
+            if (match.homeGoals > match.awayGoals) label = 0;
+            else if (match.homeGoals < match.awayGoals) label = 2;
+            y.push(label);
+        });
+        
+        try {
+            rfModel = new ML.RandomForestClassifier({ nEstimators: 200, maxFeatures: 0.7 });
+            rfModel.train(X, y);
+            modelTrained = true;
+            showNotification('مدل Random Forest با موفقیت آموزش دید', 'success');
+            return true;
+        } catch (e) {
+            showNotification('خطا در آموزش مدل: ' + (e.message || e), 'error');
+            return false;
+        }
+    }
+    
+    // --- پیش‌بینی نتیجه با Random Forest (با درصد احتمال) ---
+    function predictWithRF(homeTeamId, awayTeamId) {
+        if (!rfModel) {
+            showNotification('مدل آموزش ندیده است!', 'error');
+            return null;
+        }
+        
+        const features = extractAdvancedFeatures(homeTeamId, awayTeamId, new Date().toISOString().split('T')[0]);
+        const prediction = rfModel.predict([features])[0]; // کلاس نهایی
+        
+        // محاسبه درصدها با شمارش درخت‌ها
+        const trees = rfModel.estimators;
+        const counts = [0, 0, 0]; // [برد میزبان, مساوی, برد میهمان]
+        trees.forEach(tree => {
+            const p = tree.predict([features])[0];
+            counts[p]++;
+        });
+        const total = trees.length;
+        const probs = counts.map(c => Math.round((c / total) * 100));
+        
+        return {
+            homeWinProb: probs[0],
+            drawProb: probs[1],
+            awayWinProb: probs[2],
+            mostLikely: prediction,
+            probs
+        };
+    }
+    // --- مدیریت داده‌ها ---
+    function saveData() {
+        try {
+            localStorage.setItem('footballPrediction_teams', JSON.stringify(teams));
+            localStorage.setItem('footballPrediction_matches', JSON.stringify(matches));
+            if (rfModel && modelTrained) {
+                localStorage.setItem('footballPrediction_rfModel', JSON.stringify(rfModel.toJSON()));
+            }
+            showNotification('✅ داده‌ها ذخیره شد', 'success');
+        } catch (error) {
+            showNotification('❌ خطا در ذخیره‌سازی', 'error');
+        }
+    }
+    function loadData() {
+        try {
+            const savedTeams = localStorage.getItem('footballPrediction_teams');
+            const savedMatches = localStorage.getItem('footballPrediction_matches');
+            const savedModel = localStorage.getItem('footballPrediction_rfModel');
+            if (savedTeams) teams = JSON.parse(savedTeams);
+            if (savedMatches) matches = JSON.parse(savedMatches);
+            if (savedModel) {
+                rfModel = ML.RandomForestClassifier.load(JSON.parse(savedModel));
+                modelTrained = true;
+            }
+            if (teams.length > 0 || matches.length > 0) {
+                showNotification('📂 داده‌ها بارگذاری شد', 'success');
+            }
+        } catch (error) {
+            showNotification('❌ خطا در بارگذاری داده‌ها', 'error');
+            teams = [];
+            matches = [];
+        }
+    }
+    function exportData() {
+        const data = {
+            teams: teams,
+            matches: matches,
+            rfModel: (rfModel && modelTrained) ? rfModel.toJSON() : null,
+            exportDate: new Date().toISOString()
+        };
+        const dataStr = JSON.stringify(data, null, 2);
+        const dataBlob = new Blob([dataStr], {type: 'application/json'});
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = `football_ai_rf_backup_${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+        showNotification('💾 فایل پشتیبان دانلود شد', 'success');
+    }
+    function importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (data.teams && data.matches) {
+                    teams = data.teams;
+                    matches = data.matches;
+                    if (data.rfModel) {
+                        rfModel = ML.RandomForestClassifier.load(data.rfModel);
+                        modelTrained = true;
+                    }
+                    saveData();
+                    updateTeamsDisplay();
+                    updateMatchesDisplay();
+                    updateTeamSelects();
+                    showNotification('📥 داده‌ها با موفقیت وارد شد', 'success');
+                } else {
+                    showNotification('❌ فرمت فایل نامعتبر است', 'error');
+                }
+            } catch (error) {
+                showNotification('❌ خطا در خواندن فایل', 'error');
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+    }
+    function clearAllData() {
+        if (confirm('آیا مطمئن هستید که می‌خواهید همه داده‌ها را پاک کنید؟')) {
+            teams = [];
+            matches = [];
+            rfModel = null;
+            modelTrained = false;
+            localStorage.removeItem('footballPrediction_teams');
+            localStorage.removeItem('footballPrediction_matches');
+            localStorage.removeItem('footballPrediction_rfModel');
+            updateTeamsDisplay();
+            updateMatchesDisplay();
+            updateTeamSelects();
+            document.getElementById('prediction-result').classList.add('hidden');
+            showNotification('🗑️ همه داده‌ها پاک شد', 'success');
+        }
+    }
+
+    // --- Tab Management ---
+    function showTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('bg-blue-500', 'text-white');
+            btn.classList.add('text-gray-600', 'hover:bg-gray-100');
+        });
+        document.getElementById(tabName + '-content').classList.remove('hidden');
+        document.getElementById(tabName + '-tab').classList.add('bg-blue-500', 'text-white');
+        document.getElementById(tabName + '-tab').classList.remove('text-gray-600', 'hover:bg-gray-100');
+    }
+
+    // --- Teams Management ---
+    function addTeam() {
+        const name = document.getElementById('team-name').value.trim();
+        if (!name) { alert('لطفاً نام تیم را وارد کنید'); return; }
+        if (teams.find(team => team.name === name)) { alert('این تیم قبلاً اضافه شده است'); return; }
+        const team = {
+            id: Date.now(),
+            name
+        };
+        teams.push(team);
+        modelTrained = false;
+        rfModel = null;
+        saveData();
+        updateTeamsDisplay();
+        updateTeamSelects();
+        clearTeamForm();
+    }
+    function deleteTeam(id) {
+        teams = teams.filter(team => team.id !== id);
+        matches = matches.filter(match => match.homeTeam !== id && match.awayTeam !== id);
+        modelTrained = false;
+        rfModel = null;
+        saveData();
+        updateTeamsDisplay();
+        updateTeamSelects();
+        updateMatchesDisplay();
+    }
+    function clearTeamForm() {
+        document.getElementById('team-name').value = '';
+    }
+    function updateTeamsDisplay() {
+        // جدول آمار را از بازی‌ها محاسبه کن
+        const teamsStats = teams.map(t => ({
+            ...t,
+            ...calculateTeamStats(t.id)
+        }));
+        const sortedTeams = [...teamsStats].sort((a, b) => {
+            if (b.points !== a.points) return b.points - a.points;
+            return b.goalDifference - a.goalDifference;
+        });
+        const tbody = document.getElementById('teams-table');
+        tbody.innerHTML = sortedTeams.map((team, idx) => `
+            <tr class="border-b hover:bg-gray-50">
+                <td class="p-3">
+                    <div class="flex items-center">
+                        <span class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs mr-2">${idx + 1}</span>
+                        <span class="font-medium">${team.name}</span>
+                    </div>
+                </td>
+                <td class="p-3 text-center font-bold text-blue-600">${team.points}</td>
+                <td class="p-3 text-center">${team.wins}</td>
+                <td class="p-3 text-center">${team.draws}</td>
+                <td class="p-3 text-center">${team.losses}</td>
+                <td class="p-3 text-center">${team.goalsFor}</td>
+                <td class="p-3 text-center">${team.goalsAgainst}</td>
+                <td class="p-3 text-center font-bold text-orange-600">${team.goalDifference}</td>
+                <td class="p-3 text-center">
+                    <button onclick="deleteTeam(${team.id})" class="bg-red-500 text-white px-3 py-1 rounded text-xs hover:bg-red-600">
+                        حذف
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+    function updateTeamSelects() {
+        const selects = ['home-team', 'away-team', 'predict-home', 'predict-away'];
+        selects.forEach(selectId => {
+            const select = document.getElementById(selectId);
+            const currentValue = select.value;
+            select.innerHTML = `<option value="">${selectId.includes('home') ? 'تیم میزبان' : 'تیم میهمان'}</option>` +
+                teams.map(team => `<option value="${team.id}">${team.name}</option>`).join('');
+            select.value = currentValue;
+        });
+    }
+
+    // --- Match Management ---
+    function addMatch() {
+        const homeTeamId = parseInt(document.getElementById('home-team').value);
+        const awayTeamId = parseInt(document.getElementById('away-team').value);
+        const homeGoals = parseInt(document.getElementById('home-goals').value) || 0;
+        const awayGoals = parseInt(document.getElementById('away-goals').value) || 0;
+        const date = document.getElementById('match-date').value;
+
+        if (!homeTeamId || !awayTeamId) { alert('لطفاً هر دو تیم را انتخاب کنید'); return; }
+        if (homeTeamId === awayTeamId) { alert('تیم نمی‌تواند با خودش بازی کند'); return; }
+
+        const match = {
+            id: Date.now(),
+            homeTeam: homeTeamId,
+            awayTeam: awayTeamId,
+            homeGoals,
+            awayGoals,
+            date: date || new Date().toISOString().split('T')[0]
+        };
+        matches.push(match);
+        modelTrained = false;
+        rfModel = null;
+        saveData();
+        updateMatchesDisplay();
+        updateTeamsDisplay();
+        clearMatchForm();
+    }
+    function clearMatchForm() {
+        document.getElementById('home-team').value = '';
+        document.getElementById('away-team').value = '';
+        document.getElementById('home-goals').value = '';
+        document.getElementById('away-goals').value = '';
+        document.getElementById('match-date').value = '';
+    }
+    function updateMatchesDisplay() {
+        const matchesList = document.getElementById('matches-list');
+        if (matches.length === 0) {
+            matchesList.innerHTML = '<p class="text-gray-500 text-center py-4">هنوز بازی‌ای اضافه نشده است</p>';
+            return;
+        }
+        matchesList.innerHTML = matches.slice(-10).reverse().map(match => {
+            const homeTeam = teams.find(t => t.id === match.homeTeam);
+            const awayTeam = teams.find(t => t.id === match.awayTeam);
+            return `
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="flex justify-between items-center">
+                        <div class="text-sm text-gray-600">${match.date}</div>
+                        <button onclick="deleteMatch(${match.id})" class="text-red-500 hover:text-red-700 text-sm">حذف</button>
+                    </div>
+                    <div class="flex items-center justify-between mt-2">
+                        <span class="font-medium">${homeTeam?.name || 'نامشخص'}</span>
+                        <div class="bg-white px-3 py-1 rounded font-bold">
+                            ${match.homeGoals} - ${match.awayGoals}
+                        </div>
+                        <span class="font-medium">${awayTeam?.name || 'نامشخص'}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    function deleteMatch(id) {
+        matches = matches.filter(match => match.id !== id);
+        modelTrained = false;
+        rfModel = null;
+        saveData();
+        updateMatchesDisplay();
+        updateTeamsDisplay();
+    }
+
+    // --- پیش‌بینی با مدل Random Forest ---
+    function predictMatch() {
+        const homeTeamId = parseInt(document.getElementById('predict-home').value);
+        const awayTeamId = parseInt(document.getElementById('predict-away').value);
+        if (!homeTeamId || !awayTeamId) {
+            alert('لطفاً هر دو تیم را انتخاب کنید'); return;
+        }
+        if (homeTeamId === awayTeamId) {
+            alert('تیم نمی‌تواند با خودش بازی کند'); return;
+        }
+        if (!modelTrained || !rfModel) {
+            showNotification('مدل آموزش ندیده است!', 'error');
+            return;
+        }
+        const homeTeam = teams.find(t => t.id === homeTeamId);
+        const awayTeam = teams.find(t => t.id === awayTeamId);
+
+        const prediction = predictWithRF(homeTeamId, awayTeamId);
+        if (!prediction) return;
+
+        let mostLikely = 'مساوی';
+        if (prediction.mostLikely === 0) mostLikely = `برد ${homeTeam.name}`;
+        else if (prediction.mostLikely === 2) mostLikely = `برد ${awayTeam.name}`;
+        let maxProb = Math.max(...prediction.probs);
+
+        const resultDiv = document.getElementById('prediction-result');
+        resultDiv.innerHTML = `
+            <h4 class="text-2xl font-bold mb-4">🤖 پیشبینی Random Forest</h4>
+            <div class="text-3xl font-bold mb-4">${homeTeam.name} vs ${awayTeam.name}</div>
+            <div class="grid grid-cols-3 gap-4 mb-6">
+                <div class="bg-white bg-opacity-20 rounded-lg p-4">
+                    <div class="text-sm opacity-80">برد ${homeTeam.name}</div>
+                    <div class="text-2xl font-bold">${prediction.homeWinProb}%</div>
+                </div>
+                <div class="bg-white bg-opacity-20 rounded-lg p-4">
+                    <div class="text-sm opacity-80">مساوی</div>
+                    <div class="text-2xl font-bold">${prediction.drawProb}%</div>
+                </div>
+                <div class="bg-white bg-opacity-20 rounded-lg p-4">
+                    <div class="text-sm opacity-80">برد ${awayTeam.name}</div>
+                    <div class="text-2xl font-bold">${prediction.awayWinProb}%</div>
+                </div>
+            </div>
+            <div class="text-lg mb-2">
+                <strong>🎯 احتمال بیشتر:</strong> ${mostLikely} (${Math.round(maxProb*100)}%)
+            </div>
+            <div class="text-sm opacity-80">
+                🧠 مدل: Random Forest | ویژگی‌های حرفه‌ای
+            </div>
+        `;
+        resultDiv.classList.remove('hidden');
+    }
+
+    // --- Notification ---
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-lg text-white font-medium transform transition-all duration-300 ${
+            type === 'success' ? 'bg-green-500' : 'bg-red-500'
+        }`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        setTimeout(() => { notification.style.transform = 'translateX(0)'; }, 100);
+        setTimeout(() => {
+            notification.style.transform = 'translateX(100%)';
+            setTimeout(() => { document.body.removeChild(notification); }, 300);
+        }, 3000);
+    }
+
+    // --- Init ---
+    document.addEventListener('DOMContentLoaded', function() {
+        loadData();
+        updateTeamsDisplay();
+        updateMatchesDisplay();
+        updateTeamSelects();
+    });
+    </script>
+</body>
+</html>
